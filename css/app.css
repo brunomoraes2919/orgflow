@@ -437,3 +437,9 @@ kbd { font-family: inherit; font-size: 11px; font-weight: 600; background: var(-
 .legend-diff.removed { color: #dc2626; }
 .legend-diff.changed { color: #d97706; }
 .legend-diff.moved { color: #2563eb; }
+
+/* future positions stay faded, so the current team keeps the visual weight */
+.og-card.diff-added { border-color: #bbf7d0; box-shadow: none; }
+.og-card.diff-added .og-av, .og-card.diff-added .og-bar, .og-card.diff-added .og-band, .og-card.diff-added .og-ic { opacity: 0.4; }
+.og-card.diff-added .og-role, .og-card.diff-added .og-name, .og-card.diff-added .og-dept { opacity: 0.6; }
+.og-card.diff-added .og-diff { background: #dcfce7; color: #15803d; }
