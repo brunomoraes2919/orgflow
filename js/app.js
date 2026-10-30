@@ -212,7 +212,9 @@
     state.view.k = k;
     state.view.x = (r.width - L.width * k) / 2;
     state.view.y = Math.max(20, (r.height - L.height * k) / 2 - 10);
+    els.viewport.style.transition = 'transform .4s cubic-bezier(.22,1,.36,1)';
     applyView();
+    setTimeout(() => (els.viewport.style.transition = ''), 420);
   }
   function ensureVisible(id) {
     const card = els.chart.querySelector(`.og-card[data-id="${CSS.escape(id)}"]`);
@@ -251,6 +253,7 @@
   function renderChart() {
     const ui = S.ui;
     const matchSet = state.matchSet.size ? state.matchSet : legendMatches();
+    queueAnimation();
     const diff = diffInfo();
     state.diffSummary = diff && diff.summary;
     const res = OG.Chart.render(els.chart, diff ? diff.nodes : S.nodes, {
@@ -264,6 +267,69 @@
     els.chart.className = 'chart ' + (ui.layout === 'horizontal' || ui.layout === 'lista' ? 'axis-y' : 'axis-x');
     els.empty.hidden = S.nodes.length > 0;
     renderLegend();
+  }
+
+  /* Change animations: several renders in one tick count as one change, so the
+     "before" state is captured once and the motion plays on the final DOM. */
+  const MOTION = { duration: 420, easing: 'cubic-bezier(.22,1,.36,1)' };
+  const calmMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches || !Element.prototype.animate;
+
+  function queueAnimation() {
+    if (state.pendingAnim || !state.lastLayout || calmMotion()) return;
+    const oldCards = {};
+    $$('.og-card', els.chart).forEach((c) => (oldCards[c.dataset.id] = c));
+    state.pendingAnim = { prev: state.lastLayout.pos, oldCards };
+    Promise.resolve().then(playAnimation); // after the current handler, before the next paint
+  }
+
+  function playAnimation() {
+    const { prev, oldCards } = state.pendingAnim;
+    state.pendingAnim = null;
+    if (state.editing) return; // typing must not make the chart swim
+    const pos = state.lastLayout.pos;
+    const world = $('.og-world', els.chart);
+    if (!world) return;
+    const parentOf = (id) => {
+      const n = S.get(id);
+      return n && n.parentId;
+    };
+    let changed = false;
+    $$('.og-card', world).forEach((c) => {
+      const id = c.dataset.id;
+      const now = pos[id];
+      const was = prev[id];
+      if (was) {
+        const dx = was.x - now.x;
+        const dy = was.y - now.y;
+        if (dx || dy) {
+          changed = true;
+          c.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], MOTION);
+        }
+        if (was.h !== now.h) changed = true;
+        return;
+      }
+      // new card: grows out of its leader when the leader was already there
+      changed = true;
+      const from = prev[parentOf(id)];
+      const start = from ? `translate(${from.x - now.x}px, ${from.y - now.y}px) scale(.8)` : 'scale(.8)';
+      c.animate([{ opacity: 0, transform: start }, { transform: 'none' }], MOTION);
+    });
+    Object.keys(oldCards).forEach((id) => {
+      if (pos[id]) return;
+      changed = true;
+      const c = oldCards[id];
+      const was = prev[id];
+      const to = pos[(was && parentOf(id)) || ''];
+      c.classList.remove('selected');
+      c.style.pointerEvents = 'none';
+      world.appendChild(c);
+      c.animate([{ transform: 'none' }, { opacity: 0, transform: to && was ? `translate(${to.x - was.x}px, ${to.y - was.y}px) scale(.8)` : 'scale(.8)' }], { ...MOTION, duration: 280 });
+      setTimeout(() => c.remove(), 300); // a timer, because hidden tabs never finish animations
+    });
+    if (changed) {
+      // connectors are redrawn at their final place, so they appear as the cards land
+      $$('.og-edges, .og-co-tag, .og-toggle', world).forEach((el) => el.animate([{ opacity: 0 }, {}], { duration: 260, delay: 200, fill: 'backwards' }));
+    }
   }
 
   /* Atual / Futuro: a future version remembers the version it came from */

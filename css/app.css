@@ -443,3 +443,11 @@ kbd { font-family: inherit; font-size: 11px; font-weight: 600; background: var(-
 .og-card.diff-added .og-av, .og-card.diff-added .og-bar, .og-card.diff-added .og-band, .og-card.diff-added .og-ic { opacity: 0.4; }
 .og-card.diff-added .og-role, .og-card.diff-added .og-name, .og-card.diff-added .og-dept { opacity: 0.6; }
 .og-card.diff-added .og-diff { background: #dcfce7; color: #15803d; }
+
+/* smooth theme, panel content and legend changes */
+.topbar, .panel, .statusbar, .canvas, .float-bar, .legend { transition: background-color 0.25s, border-color 0.25s; }
+.panel-body > * { animation: fade 0.18s ease-out; }
+.seg button, .btn, .icon-btn { transition: background-color 0.15s, color 0.15s; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
