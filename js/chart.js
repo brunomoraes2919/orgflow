@@ -6,6 +6,8 @@
     String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   OG.esc = esc;
 
+  const DIFF_LABEL = { added: 'Novo', changed: 'Alterado', moved: 'Movido', removed: 'Removido' };
+
   const initials = (s) =>
     String(s || '')
       .split(/\s+/)
@@ -87,7 +89,10 @@
           </div>`;
       }
       const badge = opts.showCount && kc ? `<span class="og-badge" title="${kc} subordinado(s) direto(s)">${OG.icon('users', 11)}${kc}</span>` : '';
-      const actions = opts.interactive
+      const diffType = opts.diff && opts.diff[id];
+      if (diffType) cls.push('diff-' + diffType);
+      const diffTag = diffType ? `<span class="og-diff">${DIFF_LABEL[diffType]}</span>` : '';
+      const actions = opts.interactive && diffType !== 'removed'
         ? `<div class="og-actions">
             <button data-act="add-child" title="Adicionar subordinado (Tab)">${OG.icon('plus', 14)}</button>
             <button data-act="add-sibling" title="Adicionar par (Enter)">${OG.icon('users', 14)}</button>
@@ -96,7 +101,7 @@
           </div>`
         : '';
       parts.push(
-        `<div class="${cls.join(' ')}" data-id="${esc(id)}" title="${esc(title)}" style="left:${p.x}px;top:${p.y}px;width:${p.w}px;height:${p.h}px;--c:${color}">${inner}${badge}${actions}</div>`
+        `<div class="${cls.join(' ')}" data-id="${esc(id)}" title="${esc(title)}" style="left:${p.x}px;top:${p.y}px;width:${p.w}px;height:${p.h}px;--c:${color}">${inner}${badge}${diffTag}${actions}</div>`
       );
     }
     for (const id in L.toggles) {

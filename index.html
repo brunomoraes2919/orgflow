@@ -6,8 +6,8 @@
   <title>OrgFlow — Organograma de Funções</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/app.css?v=10">
-  <link rel="stylesheet" href="css/report.css?v=10">
+  <link rel="stylesheet" href="css/app.css?v=11">
+  <link rel="stylesheet" href="css/report.css?v=11">
 </head>
 <body>
   <div id="app">
@@ -26,6 +26,12 @@
 
       <button class="btn" id="btn-new-version" title="Criar nova versão a partir da atual"><span data-icon="plus"></span><span class="lbl-always">Nova versão</span></button>
       <button class="btn" id="btn-folder" title="Salvar e abrir versões em uma pasta do computador"><span data-icon="folderOpen"></span><span class="lbl-always">Pasta</span></button>
+
+      <div class="seg text" id="time-seg" role="group" aria-label="Cenário">
+        <button data-time="now" title="Organograma de hoje">Atual</button>
+        <button data-time="future" title="Como a equipe vai ficar no futuro">Futuro</button>
+      </div>
+      <label class="check diff-toggle" title="Destacar o que muda em relação ao organograma atual"><input type="checkbox" id="diff-toggle"> Comparar</label>
 
       <div class="group">
         <button class="icon-btn" id="btn-undo" title="Desfazer (Ctrl+Z)" data-icon="undo"></button>
@@ -157,14 +163,14 @@
   <div id="modal-root"></div>
   <div id="toast-root"></div>
 
-  <script src="js/icons.js?v=10"></script>
-  <script src="js/store.js?v=10"></script>
-  <script src="js/layout.js?v=10"></script>
-  <script src="js/chart.js?v=10"></script>
-  <script src="js/analytics.js?v=10"></script>
-  <script src="js/exporter.js?v=10"></script>
-  <script src="js/report.js?v=10"></script>
-  <script src="js/app.js?v=10"></script>
-  <script src="js/folder.js?v=10"></script>
+  <script src="js/icons.js?v=11"></script>
+  <script src="js/store.js?v=11"></script>
+  <script src="js/layout.js?v=11"></script>
+  <script src="js/chart.js?v=11"></script>
+  <script src="js/analytics.js?v=11"></script>
+  <script src="js/exporter.js?v=11"></script>
+  <script src="js/report.js?v=11"></script>
+  <script src="js/app.js?v=11"></script>
+  <script src="js/folder.js?v=11"></script>
 </body>
 </html>

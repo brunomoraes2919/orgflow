@@ -24,6 +24,7 @@
     showDept: true,
     showCount: true,
     showName: true,
+    showDiff: true,
     theme: 'light',
     panelOpen: true,
   };
@@ -754,6 +755,15 @@
       this.project.versions.push(v);
       this.project.currentVersionId = v.id;
       this.changed('version');
+      return v;
+    },
+    // the future scenario starts as a copy of its base, so node ids match for comparison
+    createFuture(baseId) {
+      const base = this.project.versions.find((v) => v.id === baseId);
+      this.switchVersion(baseId);
+      const v = this.createVersion(base.name + ' — Futuro', 'copy');
+      v.baseVersionId = baseId;
+      this.scheduleSave();
       return v;
     },
     renameVersion(id, name) {

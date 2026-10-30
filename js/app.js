@@ -251,8 +251,11 @@
   function renderChart() {
     const ui = S.ui;
     const matchSet = state.matchSet.size ? state.matchSet : legendMatches();
-    const res = OG.Chart.render(els.chart, S.nodes, {
+    const diff = diffInfo();
+    state.diffSummary = diff && diff.summary;
+    const res = OG.Chart.render(els.chart, diff ? diff.nodes : S.nodes, {
       ...ui,
+      diff: diff && diff.map,
       interactive: true,
       selectedId: state.selectedId,
       matchIds: matchSet,
@@ -261,6 +264,29 @@
     els.chart.className = 'chart ' + (ui.layout === 'horizontal' || ui.layout === 'lista' ? 'axis-y' : 'axis-x');
     els.empty.hidden = S.nodes.length > 0;
     renderLegend();
+  }
+
+  /* Atual / Futuro: a future version remembers the version it came from */
+  function scenario() {
+    const cur = S.version;
+    const vs = S.project.versions;
+    const base = cur.baseVersionId ? vs.find((v) => v.id === cur.baseVersionId) : null;
+    if (base) return { base, future: cur };
+    return { base: cur, future: vs.find((v) => v.baseVersionId === cur.id) || null };
+  }
+
+  function diffInfo() {
+    const { base, future } = scenario();
+    if (!S.ui.showDiff || !future || future !== S.version || !OG.Analytics) return null;
+    const d = OG.Analytics.compare(base.nodes, future.nodes, S.levels);
+    const map = {};
+    d.changed.forEach((c) => (map[c.node.id] = 'changed'));
+    d.moved.forEach((m) => (map[m.node.id] = 'moved'));
+    d.added.forEach((n) => (map[n.id] = 'added'));
+    d.removed.forEach((n) => (map[n.id] = 'removed'));
+    const known = new Set([...future.nodes, ...d.removed].map((n) => n.id));
+    const ghosts = d.removed.map((n) => ({ ...n, collapsed: false, coLinks: [], parentId: known.has(n.parentId) ? n.parentId : null }));
+    return { nodes: [...future.nodes, ...ghosts], map, summary: d.summary };
   }
 
   function legendMatches() {
@@ -279,6 +305,8 @@
       const depts = [...new Set(S.nodes.map((n) => n.dept || ''))];
       html = '<div class="legend-title">Departamentos</div>' + depts.map((d) => `<span class="legend-item ${state.legendFilter && state.legendFilter.value === d ? 'active' : ''}" data-type="dept" data-value="${esc(d)}"><i style="background:${S.deptColor(d)}"></i>${esc(d || 'Sem departamento')}</span>`).join('');
     }
+    const ds = state.diffSummary;
+    if (ds) html += `<div class="legend-title">Atual → Futuro</div><span class="legend-diff added">${ds.added} novas</span><span class="legend-diff removed">${ds.removed} removidas</span><span class="legend-diff changed">${ds.changed} alteradas</span><span class="legend-diff moved">${ds.moved} movidas</span>`;
     if (S.nodes.some((n) => (n.coLinks || []).length)) html += '<span class="legend-co"><i></i>Coparticipação</span>';
     els.legend.innerHTML = S.nodes.length ? html : '';
   }
@@ -300,6 +328,13 @@
     document.title = S.project.name + ' — OrgFlow';
     els.versionSelect.innerHTML = S.project.versions.map((v) => `<option value="${v.id}" ${v.id === S.version.id ? 'selected' : ''}>${esc(v.name)}</option>`).join('');
     $$('#layout-seg button').forEach((b) => b.classList.toggle('active', b.dataset.layout === ui.layout));
+    const sc = scenario();
+    const inFuture = !!sc.future && sc.future === S.version;
+    $$('#time-seg button').forEach((b) => b.classList.toggle('active', (b.dataset.time === 'future') === inFuture));
+    const dt = $('#diff-toggle');
+    dt.checked = ui.showDiff !== false;
+    dt.disabled = !inFuture;
+    dt.closest('label').classList.toggle('off', !inFuture);
     els.undo.disabled = !S.canUndo();
     els.redo.disabled = !S.canRedo();
     document.documentElement.dataset.theme = ui.theme;
@@ -853,7 +888,8 @@
       if (e.button !== 0 && e.button !== 1) return;
       closeMenus();
       const btn = e.target.closest('button');
-      const card = e.target.closest('.og-card');
+      let card = e.target.closest('.og-card');
+      if (card && card.classList.contains('diff-removed')) card = null; // removed positions are read-only
       if (btn && (btn.dataset.act || btn.closest('.float-bar'))) return; // handled by click
       if (e.target.closest('.float-bar, .legend, .empty')) return;
       if (card && e.button === 0) {
@@ -932,7 +968,7 @@
       const id = b.dataset.id || (b.closest('.og-card') && b.closest('.og-card').dataset.id);
       switch (b.dataset.act) {
         case 'toggle':
-          S.setCollapsed(id, !S.get(id).collapsed);
+          if (S.get(id)) S.setCollapsed(id, !S.get(id).collapsed);
           break;
         case 'add-child':
           addChild(id);
@@ -1164,7 +1200,7 @@
     let best = null,
       bestScore = Infinity;
     for (const oid in L.pos) {
-      if (oid === id) continue;
+      if (oid === id || !S.get(oid)) continue;
       const q = L.pos[oid];
       const ox = q.x + q.w / 2 - cx,
         oy = q.y + q.h / 2 - cy;
@@ -1585,6 +1621,17 @@
       requestAnimationFrame(fit);
     });
     els.themeBtn.onclick = () => S.setUI({ theme: S.ui.theme === 'dark' ? 'light' : 'dark' });
+    $('#time-seg').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-time]');
+      if (!b) return;
+      const { base, future } = scenario();
+      if (b.dataset.time === 'now') return S.switchVersion(base.id);
+      if (future) return S.switchVersion(future.id);
+      S.createFuture(base.id);
+      S.setUI({ showDiff: true });
+      toast('Versão futura criada. Edite à vontade: o organograma atual não muda.', { duration: 5000 });
+    });
+    $('#diff-toggle').addEventListener('change', (e) => S.setUI({ showDiff: e.target.checked }));
     $('#btn-panel').onclick = () => S.setUI({ panelOpen: S.ui.panelOpen === false });
     $('#btn-templates').onclick = openTemplates;
     $('#btn-quick').onclick = openQuickImport;
