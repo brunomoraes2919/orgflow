@@ -1722,7 +1722,7 @@
       });
     }
     // expose for debugging / other modules
-    OG.App = { select, fit, toast, renderAll, state };
+    OG.App = { select, fit, toast, renderAll, state, modal, confirmModal, versionCmd };
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

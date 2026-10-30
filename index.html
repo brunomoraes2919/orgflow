@@ -6,8 +6,8 @@
   <title>OrgFlow — Organograma de Funções</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/app.css?v=8">
-  <link rel="stylesheet" href="css/report.css?v=8">
+  <link rel="stylesheet" href="css/app.css?v=9">
+  <link rel="stylesheet" href="css/report.css?v=9">
 </head>
 <body>
   <div id="app">
@@ -23,6 +23,9 @@
         <select id="version-select" aria-label="Versão"></select>
         <button class="icon-btn" data-menu="version-menu" title="Gerenciar versões" data-icon="chevronDown"></button>
       </div>
+
+      <button class="btn" id="btn-new-version" title="Criar nova versão a partir da atual"><span data-icon="plus"></span><span class="lbl-always">Nova versão</span></button>
+      <button class="btn" id="btn-folder" title="Salvar e abrir versões em uma pasta do computador"><span data-icon="folderOpen"></span><span class="lbl-always">Pasta</span></button>
 
       <div class="group">
         <button class="icon-btn" id="btn-undo" title="Desfazer (Ctrl+Z)" data-icon="undo"></button>
@@ -96,6 +99,7 @@
     <footer class="statusbar">
       <span id="stats"></span>
       <span class="spacer"></span>
+      <button class="link-btn" id="folder-status"></button>
       <span id="save-status" class="save-status"></span>
       <button class="link-btn" id="btn-shortcuts"><span data-icon="keyboard"></span>Atalhos</button>
     </footer>
@@ -153,13 +157,14 @@
   <div id="modal-root"></div>
   <div id="toast-root"></div>
 
-  <script src="js/icons.js?v=8"></script>
-  <script src="js/store.js?v=8"></script>
-  <script src="js/layout.js?v=8"></script>
-  <script src="js/chart.js?v=8"></script>
-  <script src="js/analytics.js?v=8"></script>
-  <script src="js/exporter.js?v=8"></script>
-  <script src="js/report.js?v=8"></script>
-  <script src="js/app.js?v=8"></script>
+  <script src="js/icons.js?v=9"></script>
+  <script src="js/store.js?v=9"></script>
+  <script src="js/layout.js?v=9"></script>
+  <script src="js/chart.js?v=9"></script>
+  <script src="js/analytics.js?v=9"></script>
+  <script src="js/exporter.js?v=9"></script>
+  <script src="js/report.js?v=9"></script>
+  <script src="js/app.js?v=9"></script>
+  <script src="js/folder.js?v=9"></script>
 </body>
 </html>
