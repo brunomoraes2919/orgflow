@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OrgFlow — Organograma de Funções</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="css/app.css?v=6">
+  <link rel="stylesheet" href="css/report.css?v=6">
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand" title="OrgFlow">
+        <span class="brand-logo" data-icon="sitemap"></span>
+        <span class="brand-name">OrgFlow</span>
+      </div>
+      <input id="project-name" class="project-name" spellcheck="false" title="Nome do projeto (clique para editar)">
+
+      <div class="group version-group" title="Versões do organograma">
+        <span class="group-ic" data-icon="gitBranch"></span>
+        <select id="version-select" aria-label="Versão"></select>
+        <button class="icon-btn" data-menu="version-menu" title="Gerenciar versões" data-icon="chevronDown"></button>
+      </div>
+
+      <div class="group">
+        <button class="icon-btn" id="btn-undo" title="Desfazer (Ctrl+Z)" data-icon="undo"></button>
+        <button class="icon-btn" id="btn-redo" title="Refazer (Ctrl+Y)" data-icon="redo"></button>
+      </div>
+
+      <div class="seg" id="layout-seg" role="radiogroup" aria-label="Layout">
+        <button data-layout="vertical" title="Árvore vertical" data-icon="sitemap"></button>
+        <button data-layout="horizontal" title="Árvore horizontal" data-icon="layoutH"></button>
+        <button data-layout="compacto" title="Compacto (equipes empilhadas)" data-icon="layoutCompact"></button>
+        <button data-layout="lista" title="Lista hierárquica" data-icon="list"></button>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="search">
+        <span data-icon="search"></span>
+        <input id="search" placeholder="Buscar função, nome, área…  (Ctrl+F)" autocomplete="off">
+        <span id="search-count" class="search-count"></span>
+      </div>
+
+      <button class="btn ghost" data-menu="view-menu" title="Estilo dos cartões e exibição"><span data-icon="palette"></span><span class="lbl">Exibição</span></button>
+      <button class="btn ghost" id="btn-templates" title="Modelos prontos"><span data-icon="sparkles"></span><span class="lbl">Modelos</span></button>
+      <button class="btn ghost" id="btn-quick" title="Montar rápido colando texto ou CSV"><span data-icon="type"></span><span class="lbl">Montagem rápida</span></button>
+      <button class="btn ghost" data-menu="file-menu" title="Arquivo e exportação"><span data-icon="download"></span><span class="lbl">Arquivo</span></button>
+      <button class="btn primary" id="btn-report" title="Gerar relatório"><span data-icon="fileText"></span><span class="lbl">Relatório</span></button>
+      <button class="icon-btn" id="btn-theme" title="Tema claro/escuro" data-icon="moon"></button>
+      <button class="icon-btn" id="btn-panel" title="Mostrar/ocultar painel" data-icon="panel"></button>
+    </header>
+
+    <div class="main">
+      <div class="canvas" id="canvas" tabindex="0" aria-label="Área do organograma">
+        <div class="viewport" id="viewport"><div class="chart" id="chart"></div></div>
+
+        <div class="empty" id="empty" hidden>
+          <div class="empty-ic" data-icon="sitemap"></div>
+          <h2>Comece seu organograma</h2>
+          <p>Crie a primeira posição, escolha um modelo pronto ou cole uma lista de funções.</p>
+          <div class="empty-actions">
+            <button class="btn primary" id="empty-add"><span data-icon="plus"></span>Criar primeira posição</button>
+            <button class="btn" id="empty-template"><span data-icon="sparkles"></span>Usar um modelo</button>
+            <button class="btn" id="empty-quick"><span data-icon="type"></span>Montagem rápida</button>
+          </div>
+        </div>
+
+        <div class="float-bar zoom-bar">
+          <button class="icon-btn" id="zoom-out" title="Diminuir zoom (-)" data-icon="zoomOut"></button>
+          <button class="zoom-label" id="zoom-label" title="Zoom 100%">100%</button>
+          <button class="icon-btn" id="zoom-in" title="Aumentar zoom (+)" data-icon="zoomIn"></button>
+          <span class="sep"></span>
+          <button class="icon-btn" id="zoom-fit" title="Ajustar à tela (0)" data-icon="fit"></button>
+          <button class="icon-btn" id="expand-all" title="Expandir tudo" data-icon="chevronDown"></button>
+          <button class="icon-btn" id="collapse-all" title="Recolher abaixo do 2º nível" data-icon="chevronUp"></button>
+          <span class="sep"></span>
+          <button class="icon-btn" id="add-root" title="Adicionar posição no topo" data-icon="plus"></button>
+        </div>
+
+        <div class="legend" id="legend"></div>
+        <div class="hint" id="hint">Arraste um cartão sobre outro para mudar o superior • Tab: subordinado • Enter: par • Del: excluir</div>
+      </div>
+
+      <aside class="panel" id="panel">
+        <div class="panel-tabs">
+          <button data-tab="node" class="active"><span data-icon="user"></span>Posição</button>
+          <button data-tab="structure"><span data-icon="layers"></span>Níveis e áreas</button>
+        </div>
+        <div class="panel-body" id="panel-body"></div>
+      </aside>
+    </div>
+
+    <footer class="statusbar">
+      <span id="stats"></span>
+      <span class="spacer"></span>
+      <span id="save-status" class="save-status"></span>
+      <button class="link-btn" id="btn-shortcuts"><span data-icon="keyboard"></span>Atalhos</button>
+    </footer>
+  </div>
+
+  <!-- menus -->
+  <div class="menu" id="version-menu" hidden>
+    <button data-cmd="version-new"><span data-icon="copy"></span>Nova versão (cópia da atual)</button>
+    <button data-cmd="version-blank"><span data-icon="plus"></span>Nova versão em branco</button>
+    <button data-cmd="version-rename"><span data-icon="pen"></span>Renomear versão</button>
+    <button data-cmd="version-compare"><span data-icon="diff"></span>Comparar versões</button>
+    <hr>
+    <button data-cmd="version-delete" class="danger"><span data-icon="trash"></span>Excluir versão</button>
+  </div>
+
+  <div class="menu wide" id="view-menu" hidden>
+    <div class="menu-title">Estilo do cartão</div>
+    <div class="style-grid" id="style-grid">
+      <button data-style="classico"><i class="sw sw-classico"></i>Clássico</button>
+      <button data-style="moderno"><i class="sw sw-moderno"></i>Moderno</button>
+      <button data-style="minimal"><i class="sw sw-minimal"></i>Minimalista</button>
+      <button data-style="compacto"><i class="sw sw-compacto"></i>Compacto</button>
+    </div>
+    <div class="menu-title">Colorir por</div>
+    <div class="seg small" id="color-seg">
+      <button data-color="level">Nível</button>
+      <button data-color="dept">Departamento</button>
+      <button data-color="none">Único</button>
+    </div>
+    <div class="menu-title">Mostrar</div>
+    <label class="check"><input type="checkbox" data-ui="showPhotos"> Fotos</label>
+    <label class="check"><input type="checkbox" data-ui="showName"> Nome do ocupante</label>
+    <label class="check"><input type="checkbox" data-ui="showDept"> Departamento</label>
+    <label class="check"><input type="checkbox" data-ui="showCount"> Nº de subordinados</label>
+  </div>
+
+  <div class="menu" id="file-menu" hidden>
+    <div class="menu-title">Projeto</div>
+    <button data-cmd="project-new"><span data-icon="plus"></span>Novo projeto</button>
+    <button data-cmd="project-open"><span data-icon="folderOpen"></span>Abrir projeto (.json)</button>
+    <button data-cmd="project-save"><span data-icon="save"></span>Salvar projeto (.json)</button>
+    <button data-cmd="import-csv"><span data-icon="table"></span>Importar planilha (CSV)</button>
+    <hr>
+    <div class="menu-title">Exportar organograma</div>
+    <button data-cmd="export-png"><span data-icon="image"></span>Imagem PNG (alta resolução)</button>
+    <button data-cmd="export-svg"><span data-icon="layers"></span>Vetor SVG</button>
+    <button data-cmd="export-csv"><span data-icon="table"></span>Planilha CSV (Excel)</button>
+    <button data-cmd="report"><span data-icon="printer"></span>Relatório / PDF</button>
+  </div>
+
+  <input type="file" id="file-json" accept=".json,application/json" hidden>
+  <input type="file" id="file-csv" accept=".csv,.txt,text/csv" hidden>
+  <input type="file" id="file-photo" accept="image/*" hidden>
+
+  <div id="modal-root"></div>
+  <div id="toast-root"></div>
+
+  <script src="js/icons.js?v=6"></script>
+  <script src="js/store.js?v=6"></script>
+  <script src="js/layout.js?v=6"></script>
+  <script src="js/chart.js?v=6"></script>
+  <script src="js/analytics.js?v=6"></script>
+  <script src="js/exporter.js?v=6"></script>
+  <script src="js/report.js?v=6"></script>
+  <script src="js/app.js?v=6"></script>
+</body>
+</html>
