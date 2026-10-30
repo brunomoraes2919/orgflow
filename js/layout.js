@@ -244,31 +244,224 @@
     return `M${x1},${y1} V${my - rr} Q${x1},${my} ${x1 + dir * rr},${my} H${x2 - dir * rr} Q${x2},${my} ${x2},${my + rr} V${y2}`;
   }
 
-  /* dashed coparticipation links: side-to-side curves between visible cards */
-  function coEdges(pos, nodes) {
-    const out = [];
-    for (const n of nodes) {
-      const a = pos[n.id];
-      if (!a) continue;
-      for (const link of n.coLinks || []) {
-        const b = pos[link.to];
-        if (!b) continue;
-        const acx = a.x + a.w / 2;
-        const bcx = b.x + b.w / 2;
-        const ay = a.y + a.h / 2;
-        const by = b.y + b.h / 2;
-        let x1, x2, c1, c2;
-        if (a.x + a.w < b.x) [x1, x2, c1, c2] = [a.x + a.w, b.x, 1, -1];
-        else if (b.x + b.w < a.x) [x1, x2, c1, c2] = [a.x, b.x + b.w, -1, 1];
-        else [x1, x2, c1, c2] = [a.x + a.w, b.x + b.w, 1, 1]; // same column: bulge to the right
-        const bend = Math.max(40, Math.abs(x2 - x1) / 2);
-        const d = `M${x1},${ay} C${x1 + c1 * bend},${ay} ${x2 + c2 * bend},${by} ${x2},${by}`;
-        const same = c1 === c2;
-        const lx = same ? Math.max(x1, x2) + bend * 0.75 : (x1 + x2) / 2;
-        out.push({ from: n.id, to: link.to, d, label: link.label || '', lx, ly: (ay + by) / 2 - 6, cx: (acx + bcx) / 2 });
+  /* ---------- dashed coparticipation links ----------
+     Orthogonal routing: a grid is built from the lanes around the cards and each
+     link takes the cheapest path through it, so lines never cross a card. It runs
+     on every layout pass, so routes follow any change in the chart. */
+  const LANE = 8; // clearance between a line and a card
+  const BEND = 40; // cost of a corner
+  const TRUNK = 2; // cost multiplier along card center lines (hierarchy trunks, toggles)
+  const SHARED = 3; // cost multiplier on lanes already used by another link
+  const TOP_BOTTOM = 30; // leaving through top/bottom competes with the hierarchy lines
+  const MAX_GRID = 300000;
+
+  function buildGrid(cards) {
+    const xset = new Set();
+    const yset = new Set();
+    let x0 = Infinity,
+      y0 = Infinity,
+      x1 = -Infinity,
+      y1 = -Infinity;
+    for (const c of cards) {
+      [c.x - LANE, c.x + c.w / 2, c.x + c.w + LANE].forEach((v) => xset.add(v));
+      [c.y - LANE, c.y + c.h / 2, c.y + c.h + LANE].forEach((v) => yset.add(v));
+      x0 = Math.min(x0, c.x);
+      y0 = Math.min(y0, c.y);
+      x1 = Math.max(x1, c.x + c.w);
+      y1 = Math.max(y1, c.y + c.h);
+    }
+    [x0 - 28, x1 + 28].forEach((v) => xset.add(v));
+    [y0 - 28, y1 + 28].forEach((v) => yset.add(v));
+    const xs = [...xset].sort((a, b) => a - b);
+    const ys = [...yset].sort((a, b) => a - b);
+    const nx = xs.length;
+    const ny = ys.length;
+    if (nx * ny > MAX_GRID) return null;
+    const blocked = new Uint8Array(nx * ny);
+    const trunkX = new Set(cards.map((c) => c.x + c.w / 2));
+    for (const c of cards) {
+      for (let j = 0; j < ny; j++) {
+        if (ys[j] <= c.y - LANE || ys[j] >= c.y + c.h + LANE) continue;
+        for (let i = 0; i < nx; i++) if (xs[i] > c.x - LANE && xs[i] < c.x + c.w + LANE) blocked[i + j * nx] = 1;
       }
     }
-    return out;
+    return { xs, ys, nx, ny, blocked, trunkX, xi: new Map(xs.map((v, i) => [v, i])), yi: new Map(ys.map((v, i) => [v, i])), used: new Set() };
+  }
+
+  const DIRS = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ];
+
+  // exits of a card: [grid x, grid y, edge x, edge y, outward direction, extra cost]
+  function ports(c) {
+    const cx = c.x + c.w / 2;
+    const cy = c.y + c.h / 2;
+    return [
+      [c.x + c.w + LANE, cy, c.x + c.w, cy, 0, 0],
+      [c.x - LANE, cy, c.x, cy, 1, 0],
+      [cx, c.y + c.h + LANE, cx, c.y + c.h, 2, TOP_BOTTOM],
+      [cx, c.y - LANE, cx, c.y, 3, TOP_BOTTOM],
+    ];
+  }
+
+  function route(a, b, g) {
+    const { xs, ys, nx, ny, blocked } = g;
+    const size = nx * ny * 4;
+    const dist = new Float64Array(size).fill(Infinity);
+    const prev = new Int32Array(size).fill(-1);
+    const heap = []; // binary heap of [cost, state]
+    const push = (cost, st) => {
+      heap.push([cost, st]);
+      for (let i = heap.length - 1; i > 0; ) {
+        const up = (i - 1) >> 1;
+        if (heap[up][0] <= heap[i][0]) break;
+        [heap[up], heap[i]] = [heap[i], heap[up]];
+        i = up;
+      }
+    };
+    const pop = () => {
+      const top = heap[0];
+      const last = heap.pop();
+      if (heap.length) {
+        heap[0] = last;
+        for (let i = 0; ; ) {
+          const l = 2 * i + 1;
+          const r = l + 1;
+          let m = i;
+          if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
+          if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
+          if (m === i) break;
+          [heap[m], heap[i]] = [heap[i], heap[m]];
+          i = m;
+        }
+      }
+      return top;
+    };
+    const cell = (x, y) => g.xi.get(x) + g.yi.get(y) * nx;
+    const starts = {};
+    for (const p of ports(a)) {
+      const k = cell(p[0], p[1]);
+      if (blocked[k]) continue;
+      const st = k * 4 + p[4];
+      dist[st] = p[5];
+      starts[st] = p;
+      push(p[5], st);
+    }
+    const goals = new Map();
+    for (const p of ports(b)) {
+      const k = cell(p[0], p[1]);
+      if (!blocked[k]) goals.set(k, p);
+    }
+    let best = Infinity;
+    let bestSt = -1;
+    while (heap.length) {
+      const [cost, st] = pop();
+      if (cost > dist[st]) continue;
+      if (cost >= best) break;
+      const k = st >> 2;
+      const d = st & 3;
+      if (goals.has(k) && cost + goals.get(k)[5] < best) {
+        best = cost + goals.get(k)[5];
+        bestSt = st;
+      }
+      const i = k % nx;
+      const j = (k - i) / nx;
+      for (let nd = 0; nd < 4; nd++) {
+        if ((nd ^ 1) === d) continue; // no U-turns
+        const ni = i + DIRS[nd][0];
+        const nj = j + DIRS[nd][1];
+        if (ni < 0 || nj < 0 || ni >= nx || nj >= ny) continue;
+        const nk = ni + nj * nx;
+        if (blocked[nk]) continue;
+        const horiz = nd < 2;
+        let len = horiz ? Math.abs(xs[ni] - xs[i]) : Math.abs(ys[nj] - ys[j]);
+        if (!horiz && g.trunkX.has(xs[i])) len *= TRUNK;
+        const seg = Math.min(k, nk) + (horiz ? 'h' : 'v');
+        if (g.used.has(seg)) len *= SHARED;
+        const nc = cost + len + (nd === d ? 0 : BEND);
+        const ns = nk * 4 + nd;
+        if (nc < dist[ns]) {
+          dist[ns] = nc;
+          prev[ns] = st;
+          push(nc, ns);
+        }
+      }
+    }
+    if (bestSt < 0) return null;
+
+    const pts = [];
+    let st = bestSt;
+    const endPort = goals.get(st >> 2);
+    pts.push([endPort[2], endPort[3]]);
+    let first = st;
+    while (st >= 0) {
+      const k = st >> 2;
+      const i = k % nx;
+      pts.push([xs[i], ys[(k - i) / nx]]);
+      const pv = prev[st];
+      if (pv >= 0) {
+        const a2 = pv >> 2;
+        g.used.add(Math.min(k, a2) + ((st & 3) < 2 ? 'h' : 'v'));
+      }
+      first = st;
+      st = pv;
+    }
+    const sp = starts[first];
+    pts.push([sp[2], sp[3]]);
+    return pts.reverse();
+  }
+
+  // drop collinear points, then round the corners
+  function polyPath(raw) {
+    const pts = raw.filter((p, i) => {
+      const a = raw[i - 1];
+      const b = raw[i + 1];
+      if (!a || !b) return true;
+      return !((a[0] === p[0] && p[0] === b[0]) || (a[1] === p[1] && p[1] === b[1]));
+    });
+    let d = `M${pts[0][0]},${pts[0][1]}`;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const [px, py] = pts[i - 1];
+      const [x, y] = pts[i];
+      const [nx, ny] = pts[i + 1];
+      const r = Math.min(7, Math.hypot(x - px, y - py) / 2, Math.hypot(nx - x, ny - y) / 2);
+      const ux = Math.sign(x - px);
+      const uy = Math.sign(y - py);
+      const vx = Math.sign(nx - x);
+      const vy = Math.sign(ny - y);
+      d += ` L${x - ux * r},${y - uy * r} Q${x},${y} ${x + vx * r},${y + vy * r}`;
+    }
+    const e = pts[pts.length - 1];
+    return { d: d + ` L${e[0]},${e[1]}`, pts };
+  }
+
+  function coEdges(pos, nodes) {
+    const links = [];
+    nodes.forEach((n) => (n.coLinks || []).forEach((l) => pos[n.id] && pos[l.to] && l.to !== n.id && links.push({ from: n.id, to: l.to, label: l.label || '' })));
+    if (!links.length) return [];
+    const g = buildGrid(Object.values(pos));
+    return links.map((l) => {
+      const a = pos[l.from];
+      const b = pos[l.to];
+      const raw = g && route(a, b, g);
+      const { d, pts } = polyPath(raw || [[a.x + a.w, a.y + a.h / 2], [b.x, b.y + b.h / 2]]);
+      // the label sits on the longest stretch
+      let lx = pts[0][0];
+      let ly = pts[0][1];
+      let longest = -1;
+      for (let i = 1; i < pts.length; i++) {
+        const len = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+        if (len > longest) {
+          longest = len;
+          lx = (pts[i][0] + pts[i - 1][0]) / 2;
+          ly = (pts[i][1] + pts[i - 1][1]) / 2;
+        }
+      }
+      return { from: l.from, to: l.to, d, pts, label: l.label, lx, ly: ly - 6 };
+    });
   }
 
   function finish(pos, edges, toggles, order, nodes) {
