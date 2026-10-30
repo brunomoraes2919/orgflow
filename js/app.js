@@ -279,6 +279,7 @@
       const depts = [...new Set(S.nodes.map((n) => n.dept || ''))];
       html = '<div class="legend-title">Departamentos</div>' + depts.map((d) => `<span class="legend-item ${state.legendFilter && state.legendFilter.value === d ? 'active' : ''}" data-type="dept" data-value="${esc(d)}"><i style="background:${S.deptColor(d)}"></i>${esc(d || 'Sem departamento')}</span>`).join('');
     }
+    if (S.nodes.some((n) => (n.coLinks || []).length)) html += '<span class="legend-co"><i></i>Coparticipação</span>';
     els.legend.innerHTML = S.nodes.length ? html : '';
   }
 
@@ -484,6 +485,24 @@
       </div>
 
       <div class="p-section">
+        <div class="p-section-title">${OG.icon('users', 15)}Coparticipação com outras áreas</div>
+        ${(n.coLinks || [])
+          .map((l, i) => {
+            const t = S.get(l.to);
+            return t
+              ? `<div class="co-row"><b>${esc(t.role)}${t.dept ? ' · ' + esc(t.dept) : ''}</b>
+                  <button class="icon-btn" data-co-del="${i}" title="Remover coparticipação">${OG.icon('x', 14)}</button>
+                  <input class="input" data-co-label="${i}" value="${esc(l.label)}" placeholder="Descrição (opcional)"></div>`
+              : '';
+          })
+          .join('')}
+        <select id="f-co-add" aria-label="Adicionar coparticipação"><option value="">+ Ligar com outra posição…</option>${S.nodes
+          .filter((x) => x.id !== n.id && !(n.coLinks || []).some((l) => l.to === x.id))
+          .map((x) => `<option value="${esc(x.id)}">${esc(x.role)}${x.dept ? ' — ' + esc(x.dept) : ''}</option>`)
+          .join('')}</select>
+      </div>
+
+      <div class="p-section">
         <div class="p-section-title">${OG.icon('palette', 15)}Aparência</div>
         <div class="field"><span class="field-label">Ícone</span>
           <div class="icon-pick" style="--c:${color}">
@@ -662,6 +681,11 @@
       } else if (t.dataset.field === 'color' && t.type === 'color' && id) {
         S.update(id, { color: t.value });
         renderPanel();
+      } else if (t.id === 'f-co-add' && t.value && id) {
+        S.update(id, { coLinks: [...(S.get(id).coLinks || []), { to: t.value, label: '' }] });
+        renderPanel();
+      } else if (t.dataset.coLabel !== undefined && id) {
+        S.update(id, { coLinks: S.get(id).coLinks.map((l, i) => (i === +t.dataset.coLabel ? { ...l, label: t.value } : l)) });
       } else if (t.dataset.dp === 'name') {
         const old = t.closest('[data-dept]').dataset.dept;
         S.renameDept(old, t.value.trim());
@@ -695,9 +719,14 @@
       }
     });
     body.addEventListener('click', (e) => {
-      const b = e.target.closest('[data-pact],[data-icon-pick],[data-color-pick],[data-lvact],[data-dpact]');
+      const b = e.target.closest('[data-pact],[data-icon-pick],[data-color-pick],[data-lvact],[data-dpact],[data-co-del]');
       if (!b) return;
       const id = state.selectedId;
+      if (b.dataset.coDel !== undefined) {
+        S.update(id, { coLinks: S.get(id).coLinks.filter((l, i) => i !== +b.dataset.coDel) });
+        renderPanel();
+        return;
+      }
       if (b.dataset.iconPick !== undefined) {
         S.update(id, { icon: b.dataset.iconPick || null });
         renderPanel();
@@ -1684,6 +1713,14 @@
     renderAll();
     els.saveStatus.innerHTML = `${OG.icon('check', 13)}Salvo automaticamente`;
     requestAnimationFrame(fit);
+    // card heights depend on the web font: remeasure once it has loaded
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        OG.Layout.clearCache();
+        renderChart();
+        fit();
+      });
+    }
     // expose for debugging / other modules
     OG.App = { select, fit, toast, renderAll, state };
   }

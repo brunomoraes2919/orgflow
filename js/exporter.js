@@ -5,6 +5,7 @@
 
   const FONT = "Inter, 'Segoe UI', Arial, sans-serif";
   const EDGE_COLOR = '#94a3b8';
+  const CO_COLOR = '#d97706';
   const SIZES_FALLBACK = {
     classico: { w: 236, h: 84 },
     moderno: { w: 196, h: 164 },
@@ -207,7 +208,7 @@
     const cardStyle = SZ[o.cardStyle] ? o.cardStyle : 'classico';
     const layout = o.layout || 'vertical';
     const list = o.expandAll ? nodes.map((n) => Object.assign({}, n, { collapsed: false })) : nodes;
-    const L = OG.Layout.compute(list, { layout, cardStyle });
+    const L = OG.Layout.compute(list, { layout, cardStyle, showName: o.showName, showDept: o.showDept });
 
     // index over ALL nodes (counts ignore visibility)
     const byId = {};
@@ -308,23 +309,23 @@
       out.push(borderRect(n, w, h, 12));
       out.push(avatar(n, c, 38, h / 2, 22, 22));
       const tx = 72;
-      const maxW = w - tx - 12;
-      const lines = [{ kind: 'role' }];
-      const sl = secondLine(n);
-      if (sl) lines.push({ kind: 'name', sl });
-      if (o.showDept && n.dept) lines.push({ kind: 'dept' });
-      const ys = lines.length === 1 ? [h / 2 + 4.5] : lines.length === 2 ? [h / 2 - 3.5, h / 2 + 14.5] : [31, 49, 67];
-      lines.forEach((ln, i) => {
-        const y = ys[i];
-        if (ln.kind === 'role') out.push(textEl(tx, y, fit(roleText(n), 13.5, 600, maxW), { size: 13.5, weight: 600, fill: '#0f172a' }));
-        else if (ln.kind === 'name') {
-          const it = !!ln.sl.vacant;
-          out.push(textEl(tx, y, fit(ln.sl.text, 12.5, 400, maxW, it), { size: 12.5, weight: 400, fill: it ? '#94a3b8' : '#475569', italic: it }));
-        } else {
-          const dc = deptColorOf(n.dept);
-          out.push(`<circle cx="${f(tx + 3)}" cy="${f(y - 3.8)}" r="3" fill="${esc(dc)}"/>`);
-          out.push(textEl(tx + 10, y, fit(n.dept, 11, 600, maxW - 10), { size: 11, weight: 600, fill: dc }));
-        }
+      const m = p.m;
+      const st = m.style;
+      const block = m.role.length * st.roleLH + m.name.length * st.nameLH + m.dept.length * st.deptLH;
+      let y = (h - block) / 2 + 12;
+      m.role.forEach((t) => {
+        out.push(textEl(tx, y, t, { size: st.roleSize, weight: 600, fill: '#0f172a' }));
+        y += st.roleLH;
+      });
+      m.name.forEach((t) => {
+        out.push(textEl(tx, y, t, { size: st.nameSize, weight: 400, fill: n.vacant ? '#94a3b8' : '#475569', italic: !!n.vacant }));
+        y += st.nameLH;
+      });
+      const dc = deptColorOf(n.dept);
+      m.dept.forEach((t, i) => {
+        if (!i) out.push(`<circle cx="${f(tx + 3)}" cy="${f(y - 3.8)}" r="3" fill="${esc(dc)}"/>`);
+        out.push(textEl(tx + 10, y, t, { size: 11, weight: 600, fill: dc }));
+        y += st.deptLH;
       });
       return out.join('');
     }
@@ -340,15 +341,22 @@
       out.push(borderRect(n, w, h, 14));
       out.push(`<circle cx="${f(cx)}" cy="46" r="33" fill="#ffffff"/>`);
       out.push(avatar(n, c, cx, 46, 30, 28));
-      const maxW = w - 20;
-      out.push(textEl(cx, 100, fit(roleText(n), 13.5, 600, maxW), { size: 13.5, weight: 600, fill: '#0f172a', anchor: 'middle' }));
-      const sl = secondLine(n);
-      if (sl) out.push(textEl(cx, 119, fit(sl.text, 12.5, 400, maxW, sl.vacant), { size: 12.5, weight: 400, fill: sl.vacant ? '#94a3b8' : '#475569', anchor: 'middle', italic: !!sl.vacant }));
-      if (o.showDept && n.dept) {
+      const m = p.m;
+      const st = m.style;
+      let y = 96;
+      m.role.forEach((t) => {
+        out.push(textEl(cx, y, t, { size: st.roleSize, weight: 600, fill: '#0f172a', anchor: 'middle' }));
+        y += st.roleLH;
+      });
+      m.name.forEach((t) => {
+        out.push(textEl(cx, y, t, { size: st.nameSize, weight: 400, fill: n.vacant ? '#94a3b8' : '#475569', anchor: 'middle', italic: !!n.vacant }));
+        y += st.nameLH;
+      });
+      if (m.dept.length) {
         const dc = deptColorOf(n.dept);
         const t = fit(n.dept, 11, 600, w - 36);
         const pw = measure(t, 11, 600) + 18;
-        const cy = sl ? 140 : 124;
+        const cy = y + 3;
         out.push(`<rect x="${f(cx - pw / 2)}" y="${f(cy - 9)}" width="${f(pw)}" height="18" rx="9" fill="${esc(dc)}" fill-opacity="0.12"/>`);
         out.push(textEl(cx, cy + 3.8, t, { size: 11, weight: 600, fill: dc, anchor: 'middle' }));
       }
@@ -369,10 +377,17 @@
         out.push(photoEl(n, 30, midY, 16));
         tx = 54;
       } else out.push(iconEl(n.vacant ? 'userPlus' : iconOf(n), 23, midY, 18, n.vacant ? '#94a3b8' : c));
-      const maxW = w - tx - 10;
-      const sl = secondLine(n);
-      out.push(textEl(tx, sl ? 27 : midY + 4.5, fit(roleText(n), 13, 600, maxW), { size: 13, weight: 600, fill: '#0f172a' }));
-      if (sl) out.push(textEl(tx, 44, fit(sl.text, 12, 400, maxW, sl.vacant), { size: 12, weight: 400, fill: sl.vacant ? '#94a3b8' : '#64748b', italic: !!sl.vacant }));
+      const m = p.m;
+      const st = m.style;
+      let y = (h + 3 - (m.role.length * st.roleLH + m.name.length * st.nameLH)) / 2 + 11;
+      m.role.forEach((t) => {
+        out.push(textEl(tx, y, t, { size: st.roleSize, weight: 600, fill: '#0f172a' }));
+        y += st.roleLH;
+      });
+      m.name.forEach((t) => {
+        out.push(textEl(tx, y, t, { size: st.nameSize, weight: 400, fill: n.vacant ? '#94a3b8' : '#64748b', italic: !!n.vacant }));
+        y += st.nameLH;
+      });
       return out.join('');
     }
 
@@ -386,7 +401,11 @@
         out.push(borderRect(n, w, h, 10));
       } else out.push(`<rect width="${f(w)}" height="${f(h)}" rx="10" fill="${esc(c)}" fill-opacity="0.1" stroke="${esc(c)}" stroke-opacity="0.35" stroke-width="1"/>`);
       out.push(iconEl(n.vacant ? 'userPlus' : iconOf(n), 20, h / 2, 16, n.vacant ? '#94a3b8' : c));
-      out.push(textEl(36, h / 2 + 4.5, fit(roleText(n), 12.5, 600, w - 36 - 10), { size: 12.5, weight: 600, fill: '#0f172a' }));
+      let y = (h - p.m.role.length * p.m.style.roleLH) / 2 + 11;
+      p.m.role.forEach((t) => {
+        out.push(textEl(36, y, t, { size: 12.5, weight: 600, fill: '#0f172a' }));
+        y += p.m.style.roleLH;
+      });
       return out.join('');
     }
 
@@ -477,7 +496,12 @@
       titleEl +
       `<g transform="translate(0 ${titleH})">` +
       `<g fill="none" stroke="${EDGE_COLOR}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">${edges}</g>` +
+      `<g fill="none" stroke="${CO_COLOR}" stroke-width="1.6" stroke-dasharray="6 5">${(L.coEdges || []).map((c) => `<path d="${esc(c.d)}"/>`).join('')}</g>` +
       cards.join('') +
+      (L.coEdges || []).filter((c) => c.label).map((c) => {
+        const w = measure(c.label, 10.5, 600) + 14;
+        return `<rect x="${f(c.lx - w / 2)}" y="${f(c.ly - 3)}" width="${f(w)}" height="18" rx="9" fill="#ffffff" stroke="${CO_COLOR}" stroke-dasharray="3 3"/>` + textEl(c.lx, c.ly + 10, c.label, { size: 10.5, weight: 600, fill: CO_COLOR, anchor: 'middle' });
+      }).join('') +
       pills.join('') +
       empty +
       '</g></svg>';
@@ -644,7 +668,7 @@
   }
 
   /* ---------------- CSV export ---------------- */
-  const CSV_HEADER = ['ID', 'ID Superior', 'Função', 'Ocupante', 'Departamento', 'Nível', 'Vaga', 'Superior (função)', 'E-mail', 'Telefone', 'Observações'];
+  const CSV_HEADER = ['ID', 'ID Superior', 'Função', 'Ocupante', 'Departamento', 'Nível', 'Vaga', 'Superior (função)', 'E-mail', 'Telefone', 'Observações', 'Coparticipação'];
 
   function csvCell(v) {
     let s = String(v == null ? '' : v);
@@ -692,7 +716,7 @@
       const lv = levels.find((l) => l.id === n.level);
       const parent = n.parentId && byId[n.parentId] ? byId[n.parentId] : null;
       lines.push(
-        [n.id, parent ? parent.id : '', n.role, n.name, n.dept, lv ? lv.name : '', n.vacant ? 'Sim' : 'Não', parent ? parent.role : '', n.email, n.phone, n.notes]
+        [n.id, parent ? parent.id : '', n.role, n.name, n.dept, lv ? lv.name : '', n.vacant ? 'Sim' : 'Não', parent ? parent.role : '', n.email, n.phone, n.notes, (n.coLinks || []).map((l) => l.to + (l.label ? '=' + l.label : '')).join(' | ')]
           .map(csvCell)
           .join(';')
       );
@@ -796,6 +820,7 @@
     ['email', ['e mail', 'email', 'mail', 'correio eletronico'], /mail/],
     ['phone', ['telefone', 'fone', 'phone', 'celular', 'tel', 'ramal', 'whatsapp', 'contato'], /\b(telefone|fone|phone|celular|tel|ramal)\b/],
     ['notes', ['observacoes', 'observacao', 'obs', 'notas', 'nota', 'notes', 'comentarios', 'comentario', 'descricao', 'description'], /\b(obs|observ|nota|note|coment|descri)/],
+    ['coLinks', ['coparticipacao', 'coparticipacoes'], null],
     ['icon', ['icone', 'icon'], null],
     ['color', ['cor', 'color', 'colour'], null],
   ];
@@ -880,6 +905,7 @@
         pid: get(row, 'parentId'),
         pRole: get(row, 'parentRole'),
         pName: get(row, 'parentName'),
+        co: get(row, 'coLinks'),
       };
       if (!rec.role && !rec.name) continue;
       let id;
@@ -980,6 +1006,11 @@
         email: r.email,
         phone: r.phone,
         notes: r.notes,
+        coLinks: r.co
+          .split('|')
+          .map((c) => c.trim().split('='))
+          .filter((c) => origMap.has(c[0]))
+          .map((c) => ({ to: origMap.get(c[0]), label: c.slice(1).join('=') })),
       });
     });
   }

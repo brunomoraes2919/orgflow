@@ -111,6 +111,8 @@
       phone: n.phone || '',
       notes: n.notes || '',
       collapsed: !!n.collapsed,
+      // dashed links to positions in other areas
+      coLinks: (Array.isArray(n.coLinks) ? n.coLinks : []).map((l) => ({ to: safeId(l && l.to), label: String((l && l.label) || '') })).filter((l) => l.to),
     };
   }
   OG.normalizeNode = normalizeNode;
@@ -667,6 +669,7 @@
           kill = new Set([id, ...this.descendants(id).map((d) => d.id)]);
         }
         this.version.nodes = this.nodes.filter((x) => !kill.has(x.id));
+        this.nodes.forEach((x) => (x.coLinks = (x.coLinks || []).filter((l) => !kill.has(l.to))));
       });
     },
     /* move node under newParentId; position: {beforeId} | {afterId} | undefined (last) */

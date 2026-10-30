@@ -47,6 +47,9 @@
 
     const parts = [];
     parts.push(`<svg class="og-edges" width="${L.width}" height="${L.height}" viewBox="0 0 ${L.width} ${L.height}">`);
+    for (const c of L.coEdges) {
+      parts.push(`<path class="og-co" d="${c.d}"/>`);
+    }
     for (const e of L.edges) {
       const hl = opts.selectedId && (e.from === opts.selectedId || e.to === opts.selectedId) ? ' hl' : '';
       parts.push(`<path class="og-edge${hl}" data-from="${e.from}" data-to="${e.to}" d="${e.d}"/>`);
@@ -65,7 +68,7 @@
       if (opts.matchIds && opts.matchIds.size) cls.push(opts.matchIds.has(id) ? 'match' : 'dim');
       const kc = kidCount[id] || 0;
       const nameTxt = n.vacant ? 'Vaga em aberto' : n.name;
-      const showName = opts.showName !== false && (nameTxt || style === 'moderno');
+      const showName = p.m.name.length > 0;
       const lvl = S.levelOf(n);
       const title = [n.role, n.vacant ? 'Vaga em aberto' : n.name, n.dept, lvl && lvl.name].filter(Boolean).join(' • ');
       let inner = '';
@@ -105,6 +108,9 @@
         `<button class="og-toggle ${n.collapsed ? 'collapsed' : ''} side-${t.side}" data-act="toggle" data-id="${esc(id)}" style="left:${t.x}px;top:${t.y}px" title="${n.collapsed ? 'Expandir' : 'Recolher'}">${label}</button>`
       );
     }
+
+    // labels sit above the cards so a tight gap never hides them
+    for (const c of L.coEdges) if (c.label) parts.push(`<div class="og-co-tag" style="left:${c.lx}px;top:${c.ly + 6}px">${esc(c.label)}</div>`);
 
     container.innerHTML = `<div class="og-world" style="width:${L.width}px;height:${L.height}px">${parts.join('')}</div>`;
     return { width: L.width, height: L.height, layout: L };

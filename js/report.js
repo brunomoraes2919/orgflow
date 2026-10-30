@@ -338,11 +338,23 @@
     return items.length ? `<div class="rp-legend"><span class="rp-legend-title">Níveis:</span>${items.join('')}</div>` : '';
   }
 
+  function coListHTML(ctx) {
+    const rows = [];
+    ctx.nodes.forEach((n) =>
+      (n.coLinks || []).forEach((l) => {
+        const t = ctx.tree.byId[l.to];
+        if (t) rows.push(`<li><strong>${esc(roleOf(n))}</strong> ⇢ ${esc(roleOf(t))}${t.dept ? ' (' + esc(t.dept) + ')' : ''}${l.label ? ' — ' + esc(l.label) : ''}</li>`);
+      })
+    );
+    return rows.length ? `<div class="rp-legend"><span class="rp-legend-title">Coparticipações (linha tracejada):</span><ul style="margin:0;padding-left:16px;width:100%;font-size:8.5pt">${rows.join('')}</ul></div>` : '';
+  }
+
   function chartHTML(ctx, no) {
     return `<section class="rp-section">
       ${sectionHead(no, 'Organograma', 'Visão completa da estrutura, com todos os níveis expandidos.')}
       ${ctx.nodes.length ? '<div class="rp-chart"></div>' : '<p class="rp-empty">Sem posições para exibir.</p>'}
       ${chartLegend(ctx)}
+      ${coListHTML(ctx)}
     </section>`;
   }
 
