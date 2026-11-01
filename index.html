@@ -6,8 +6,8 @@
   <title>OrgFlow — Organograma de Funções</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/app.css?v=15">
-  <link rel="stylesheet" href="css/report.css?v=15">
+  <link rel="stylesheet" href="css/app.css?v=16">
+  <link rel="stylesheet" href="css/report.css?v=16">
 </head>
 <body>
   <div id="app">
@@ -151,6 +151,8 @@
     <hr>
     <div class="menu-title">Exportar organograma</div>
     <button data-cmd="export-png"><span data-icon="image"></span>Imagem PNG (alta resolução)</button>
+    <button data-cmd="export-png-clear"><span data-icon="image"></span>Imagem PNG sem fundo</button>
+    <button data-cmd="export-pptx"><span data-icon="fileText"></span>PowerPoint (.pptx)</button>
     <button data-cmd="export-svg"><span data-icon="layers"></span>Vetor SVG</button>
     <button data-cmd="export-csv"><span data-icon="table"></span>Planilha CSV (Excel)</button>
     <button data-cmd="report"><span data-icon="printer"></span>Relatório / PDF</button>
@@ -163,14 +165,15 @@
   <div id="modal-root"></div>
   <div id="toast-root"></div>
 
-  <script src="js/icons.js?v=15"></script>
-  <script src="js/store.js?v=15"></script>
-  <script src="js/layout.js?v=15"></script>
-  <script src="js/chart.js?v=15"></script>
-  <script src="js/analytics.js?v=15"></script>
-  <script src="js/exporter.js?v=15"></script>
-  <script src="js/report.js?v=15"></script>
-  <script src="js/app.js?v=15"></script>
-  <script src="js/folder.js?v=15"></script>
+  <script src="js/icons.js?v=16"></script>
+  <script src="js/store.js?v=16"></script>
+  <script src="js/layout.js?v=16"></script>
+  <script src="js/chart.js?v=16"></script>
+  <script src="js/analytics.js?v=16"></script>
+  <script src="js/exporter.js?v=16"></script>
+  <script src="js/report.js?v=16"></script>
+  <script src="js/app.js?v=16"></script>
+  <script src="js/folder.js?v=16"></script>
+  <script src="js/pptx.js?v=16"></script>
 </body>
 </html>

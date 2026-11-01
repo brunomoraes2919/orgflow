@@ -1570,6 +1570,16 @@
             await X.exportPNG({ scale: 2 });
           }
           break;
+        case 'export-png-clear':
+          if (need()) {
+            toast('Gerando imagem…', { duration: 1500 });
+            await X.exportPNG({ scale: 2, background: 'transparent', title: '' });
+          }
+          break;
+        case 'export-pptx':
+          toast('Gerando PowerPoint…', { duration: 2000 });
+          await OG.Pptx.export();
+          break;
         case 'export-svg':
           if (need()) X.exportSVG();
           break;

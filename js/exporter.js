@@ -492,7 +492,7 @@
       `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${FONT}">` +
       `<title>${esc(docTitle)}</title>` +
       (defs.length ? `<defs>${defs.join('')}</defs>` : '') +
-      `<rect width="${width}" height="${height}" fill="${esc(bg)}"/>` +
+      (bg === 'transparent' ? '' : `<rect width="${width}" height="${height}" fill="${esc(bg)}"/>`) +
       titleEl +
       `<g transform="translate(0 ${titleH})">` +
       `<g fill="none" stroke="${EDGE_COLOR}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">${edges}</g>` +
@@ -531,6 +531,7 @@
         if (typeof document === 'undefined' || typeof Image === 'undefined') return fail('A exportação em PNG só está disponível no navegador.');
         const o = exportOpts(opts);
         o.background = o.background || '#ffffff';
+        const clear = o.background === 'transparent';
         const r = render(storeNodes(), o);
         const w = r.width;
         const h = r.height;
@@ -554,7 +555,7 @@
         const finish = (blob) => {
           if (!blob) return fail('Não foi possível gerar o arquivo PNG (a imagem pode ser grande demais para o navegador).');
           try {
-            download(blob, baseFileName() + '.png', 'image/png');
+            download(blob, baseFileName() + (clear ? '-sem-fundo' : '') + '.png', 'image/png');
           } catch (e) {
             return fail('Não foi possível iniciar o download do PNG.');
           }
@@ -575,8 +576,10 @@
               canvas.height = ch;
               const ctx = canvas.getContext('2d');
               if (!ctx) return fail('Seu navegador não suporta a geração de imagens (canvas indisponível).');
-              ctx.fillStyle = '#ffffff';
-              ctx.fillRect(0, 0, cw, ch);
+              if (!clear) {
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, cw, ch);
+              }
               ctx.drawImage(img, 0, 0, cw, ch);
               if (canvas.toBlob) canvas.toBlob(finish, 'image/png');
               else {
