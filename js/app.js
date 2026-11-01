@@ -1548,6 +1548,7 @@
           const ok = await confirmModal('Novo projeto', 'Criar um novo projeto em branco? O projeto atual fica salvo apenas se você exportá-lo (Arquivo → Salvar projeto).', 'Criar novo');
           if (!ok) return;
           const name = (await promptModal('Novo projeto', 'Nome da empresa / projeto', 'Novo Organograma')) || 'Novo Organograma';
+          if (OG.Cloud) OG.Cloud.detach();
           S.newProject(name, []);
           state.selectedId = null;
           renderAll();
@@ -1600,6 +1601,7 @@
     if (!OG.Exporter) return toast('Módulo de importação indisponível', { error: true });
     try {
       const p = await OG.Exporter.importJSONFile(file);
+      if (OG.Cloud) OG.Cloud.detach(); // an opened file becomes a new organogram in the profile
       S.loadProject(p);
       state.selectedId = null;
       renderAll();

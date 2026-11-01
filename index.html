@@ -6,8 +6,8 @@
   <title>OrgFlow — Organograma de Funções</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/app.css?v=16">
-  <link rel="stylesheet" href="css/report.css?v=16">
+  <link rel="stylesheet" href="css/app.css?v=17">
+  <link rel="stylesheet" href="css/report.css?v=17">
 </head>
 <body>
   <div id="app">
@@ -16,6 +16,7 @@
         <span class="brand-logo" data-icon="sitemap"></span>
         <span class="brand-name">OrgFlow</span>
       </div>
+      <div class="cloud-bar" id="cloud-bar" hidden></div>
       <input id="project-name" class="project-name" spellcheck="false" title="Nome do projeto (clique para editar)">
 
       <div class="group version-group" title="Versões do organograma">
@@ -64,6 +65,7 @@
 
     <div class="main">
       <div class="canvas" id="canvas" tabindex="0" aria-label="Área do organograma">
+        <div class="cloud-banner" id="cloud-banner" hidden></div>
         <div class="viewport" id="viewport"><div class="chart" id="chart"></div></div>
 
         <div class="empty" id="empty" hidden>
@@ -165,15 +167,16 @@
   <div id="modal-root"></div>
   <div id="toast-root"></div>
 
-  <script src="js/icons.js?v=16"></script>
-  <script src="js/store.js?v=16"></script>
-  <script src="js/layout.js?v=16"></script>
-  <script src="js/chart.js?v=16"></script>
-  <script src="js/analytics.js?v=16"></script>
-  <script src="js/exporter.js?v=16"></script>
-  <script src="js/report.js?v=16"></script>
-  <script src="js/app.js?v=16"></script>
-  <script src="js/folder.js?v=16"></script>
-  <script src="js/pptx.js?v=16"></script>
+  <script src="js/icons.js?v=17"></script>
+  <script src="js/store.js?v=17"></script>
+  <script src="js/layout.js?v=17"></script>
+  <script src="js/chart.js?v=17"></script>
+  <script src="js/analytics.js?v=17"></script>
+  <script src="js/exporter.js?v=17"></script>
+  <script src="js/report.js?v=17"></script>
+  <script src="js/app.js?v=17"></script>
+  <script src="js/folder.js?v=17"></script>
+  <script src="js/pptx.js?v=17"></script>
+  <script src="js/cloud.js?v=17"></script>
 </body>
 </html>
