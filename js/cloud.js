@@ -9,21 +9,7 @@
 
   const cloud = { active: false, me: null, chart: null, lastJson: null, saving: false, again: false };
 
-  class ApiError extends Error {
-    constructor(status, code, message) {
-      super(message);
-      this.status = status;
-      this.code = code;
-    }
-  }
-
-  async function api(action, data) {
-    const r = await fetch('/api/app', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...data }) });
-    const isJson = /json/.test(r.headers.get('content-type') || '');
-    const out = isJson ? await r.json() : {};
-    if (!r.ok) throw new ApiError(r.status, out.code || (isJson ? 'server' : 'offline'), out.error || 'Falha de conexão. Tente de novo.');
-    return out;
-  }
+  const api = (action, data) => OG.Backend.call(action, data);
 
   const toast = (m, o) => OG.App.toast(m, o);
   const fail = (e) => {
