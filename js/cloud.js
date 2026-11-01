@@ -327,6 +327,11 @@
     location.reload();
   }
 
+  const isSample = () => {
+    const v = S.project.versions;
+    return v.length === 1 && v[0].nodes.length === 36 && v[0].nodes[0].role === 'Diretor Presidente';
+  };
+
   async function enter() {
     const g = $('#auth-gate');
     if (g) g.remove();
@@ -347,6 +352,13 @@
       last = localStorage.getItem(LAST);
     } catch (e) {
       /* opens the first organogram instead */
+    }
+    // this browser never synced and holds real work: keep it as a new organogram, never overwrite it
+    if (!last && !isSample()) {
+      detach();
+      await saveNow();
+      toast(`"${S.project.name}" foi salvo no seu perfil a partir deste navegador.`, { duration: 7000 });
+      return;
     }
     const pick = list.find((c) => c.id === last) || own[0] || shared[0];
     if (pick) await openChart(pick.id);
