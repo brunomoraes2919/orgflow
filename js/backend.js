@@ -53,6 +53,20 @@
     return check(await client().from('profiles').select('id, username, name, role, must_change').order('name'));
   }
   const META = 'id, name, owner, owner_name, rev, updated_at';
+  // the trash needs supabase/trash.sql; until it runs, deleting is permanent
+  let hasTrash = null;
+  async function chartRows(query) {
+    if (hasTrash !== false) {
+      const r = await query(META + ', deleted_at');
+      if (!r.error) {
+        hasTrash = true;
+        return r.data;
+      }
+      if (!/deleted_at/.test(r.error.message || '')) return check(r);
+      hasTrash = false;
+    }
+    return check(await query(META));
+  }
 
   function toMeta(c, shares, profiles) {
     const byId = Object.fromEntries(profiles.map((p) => [p.id, p]));
@@ -60,10 +74,11 @@
     shares.filter((s) => s.chart_id === c.id && byId[s.user_id]).forEach((s) => (sharedWith[byId[s.user_id].username] = s.perm));
     const mine = shares.find((s) => s.chart_id === c.id && s.user_id === me.id);
     const perm = c.owner === me.id ? 'owner' : mine ? mine.perm : 'admin';
-    return { id: c.id, name: c.name, owner: byId[c.owner] ? byId[c.owner].username : '', ownerName: c.owner_name, rev: c.rev, updatedAt: new Date(c.updated_at).getTime(), sharedWith, perm };
+    return { id: c.id, name: c.name, owner: byId[c.owner] ? byId[c.owner].username : '', ownerName: c.owner_name, rev: c.rev, updatedAt: new Date(c.updated_at).getTime(), deletedAt: c.deleted_at ? new Date(c.deleted_at).getTime() : null, sharedWith, perm };
   }
   async function metaOf(id) {
-    const c = check(await client().from('charts').select(META).eq('id', id).single());
+    const [c] = await chartRows((cols) => client().from('charts').select(cols).eq('id', id).limit(1));
+    if (!c) throw new ApiError(404, 'not_found', 'Organograma não encontrado.');
     return toMeta(c, await shareRows(), await profileRows());
   }
 
@@ -87,11 +102,17 @@
       return { user: publicUser(await loadMe()) };
     },
     async listCharts() {
-      const rows = check(await client().from('charts').select(META).order('updated_at', { ascending: false }));
+      const rows = await chartRows((cols) => client().from('charts').select(cols).order('updated_at', { ascending: false }));
       const shares = await shareRows();
       const profiles = await profileRows();
-      const list = rows.map((c) => toMeta(c, shares, profiles));
-      return { own: list.filter((m) => m.perm === 'owner'), shared: list.filter((m) => m.perm === 'view' || m.perm === 'edit'), all: me.role === 'admin' ? list : [] };
+      const all = rows.map((c) => toMeta(c, shares, profiles));
+      const list = all.filter((m) => !m.deletedAt);
+      return {
+        own: list.filter((m) => m.perm === 'owner'),
+        shared: list.filter((m) => m.perm === 'view' || m.perm === 'edit'),
+        all: me.role === 'admin' ? list : [],
+        trash: hasTrash ? all.filter((m) => m.deletedAt && (m.perm === 'owner' || m.perm === 'admin')).sort((a, b) => b.deletedAt - a.deletedAt) : null,
+      };
     },
     async getChart({ id }) {
       const row = check(await client().from('charts').select('project').eq('id', id).single());
@@ -109,7 +130,17 @@
       if (now.perm === 'view') throw new ApiError(403, 'read_only', 'Você só tem permissão para ver este organograma.');
       throw new ApiError(409, 'conflict', 'Outra pessoa alterou este organograma.');
     },
+    // moves to the trash when it exists, otherwise deletes for good
     async deleteChart({ id }) {
+      if (hasTrash) check(await client().rpc('trash_chart', { p_id: id, p_restore: false }));
+      else check(await client().from('charts').delete().eq('id', id));
+      return {};
+    },
+    async restoreChart({ id }) {
+      check(await client().rpc('trash_chart', { p_id: id, p_restore: true }));
+      return {};
+    },
+    async purgeChart({ id }) {
       check(await client().from('charts').delete().eq('id', id));
       return {};
     },

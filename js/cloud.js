@@ -154,6 +154,14 @@
         ${canManage ? `<button class="btn small" data-c-share="${esc(m.id)}">Compartilhar</button><button class="icon-btn" data-c-del="${esc(m.id)}" title="Excluir">${OG.icon('trash', 15)}</button>` : ''}
       </div></div>`;
   };
+  const DAY = 86400000;
+  const day = (t) => new Date(t).toLocaleDateString('pt-BR');
+  const trashRow = (m) => `<div class="fd-row"><span><b>${esc(m.name)}</b><small>${esc(m.ownerName)} · excluído em ${day(m.deletedAt)} · some de vez em ${day(m.deletedAt + 30 * DAY)}</small></span>
+      <div class="row-actions">
+        <button class="btn small" data-c-restore="${esc(m.id)}">${OG.icon('undo', 14)}Restaurar</button>
+        <button class="icon-btn" data-c-purge="${esc(m.id)}" title="Excluir definitivamente">${OG.icon('trash', 15)}</button>
+      </div></div>`;
+  const trashSection = (list) => `<h4 class="cl-title">Lixeira</h4>${list.length ? `<p class="cl-empty">Organogramas excluídos ficam aqui por 30 dias.</p><div class="fd-list">${list.map(trashRow).join('')}</div>` : '<p class="cl-empty">A lixeira está vazia. Organogramas excluídos ficam aqui por 30 dias.</p>'}`;
   const section = (title, list, empty) => `<h4 class="cl-title">${esc(title)}</h4>${list.length ? `<div class="fd-list">${list.map(row).join('')}</div>` : `<p class="cl-empty">${esc(empty)}</p>`}`;
 
   async function showCharts() {
@@ -164,9 +172,10 @@
       $('#cl-body', m).innerHTML =
         section('Meus organogramas', lists.own, 'Você ainda não tem organogramas salvos.') +
         section('Compartilhados comigo', lists.shared, 'Nada foi compartilhado com você.') +
-        (cloud.me.role === 'admin' ? section('Organogramas dos outros perfis', lists.all.filter((x) => !seen.has(x.id)), 'Nenhum outro perfil salvou organogramas.') : '');
+        (cloud.me.role === 'admin' ? section('Organogramas dos outros perfis', lists.all.filter((x) => !seen.has(x.id)), 'Nenhum outro perfil salvou organogramas.') : '') +
+        (lists.trash ? trashSection(lists.trash) : '');
     };
-    const find = (id) => [...lists.own, ...lists.shared, ...lists.all].find((x) => x.id === id);
+    const find = (id) => [...lists.own, ...lists.shared, ...lists.all, ...(lists.trash || [])].find((x) => x.id === id);
     await saveNow();
     OG.App.modal({
       title: 'Organogramas',
@@ -190,6 +199,8 @@
           const open = e.target.closest('[data-c-open]');
           const share = e.target.closest('[data-c-share]');
           const del = e.target.closest('[data-c-del]');
+          const restore = e.target.closest('[data-c-restore]');
+          const purge = e.target.closest('[data-c-purge]');
           try {
             if (open) {
               await openChart(open.dataset.cOpen);
@@ -198,9 +209,23 @@
               showShare(find(share.dataset.cShare), () => render(m).catch(fail));
             } else if (del) {
               const c = find(del.dataset.cDel);
-              if (!(await OG.App.confirmModal('Excluir organograma', `Excluir <b>${esc(c.name)}</b> de ${esc(c.ownerName)}? Esta ação não pode ser desfeita.`, 'Excluir', true))) return;
+              const text = lists.trash
+                ? `Mover <b>${esc(c.name)}</b> para a lixeira? Você pode restaurá-lo por 30 dias.`
+                : `Excluir <b>${esc(c.name)}</b> de ${esc(c.ownerName)}? Esta ação não pode ser desfeita.`;
+              if (!(await OG.App.confirmModal('Excluir organograma', text, lists.trash ? 'Mover para a lixeira' : 'Excluir', true))) return;
               await api('deleteChart', { id: c.id });
               if (cloud.chart && cloud.chart.id === c.id) detach();
+              await render(m);
+              if (lists.trash) toast(`"${c.name}" foi para a lixeira`, { action: { label: 'Desfazer', run: () => api('restoreChart', { id: c.id }).then(() => render(m), fail) } });
+            } else if (restore) {
+              const c = find(restore.dataset.cRestore);
+              await api('restoreChart', { id: c.id });
+              await render(m);
+              toast(`"${c.name}" foi restaurado`);
+            } else if (purge) {
+              const c = find(purge.dataset.cPurge);
+              if (!(await OG.App.confirmModal('Excluir definitivamente', `Apagar <b>${esc(c.name)}</b> de vez? Depois disso não será possível recuperá-lo.`, 'Excluir definitivamente', true))) return;
+              await api('purgeChart', { id: c.id });
               await render(m);
             }
           } catch (err) {
